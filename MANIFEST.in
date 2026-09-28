@@ -1,0 +1,4 @@
+include LICENSE README.md
+recursive-include src/pptx/templates *
+recursive-include tests *.py
+recursive-include tests/test_files *
