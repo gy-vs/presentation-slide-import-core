@@ -103,7 +103,30 @@ class CT_SlideMasterIdList(BaseOxmlElement):
 
     sldMasterId_lst: list[CT_SlideMasterIdListEntry]
 
+    _add_sldMasterId: Callable[..., CT_SlideMasterIdListEntry]
     sldMasterId = ZeroOrMore("p:sldMasterId")
+
+    def add_sldMasterId(self, rId: str) -> CT_SlideMasterIdListEntry:
+        """Return a newly added `p:sldMasterId` child referencing `rId`."""
+        sldMasterId = self._add_sldMasterId()
+        sldMasterId.rId = rId
+        sldMasterId.id = self._next_id
+        return sldMasterId
+
+    @property
+    def _next_id(self) -> int:
+        """Return the next slide-master identifier.
+
+        The first slide-master uses 2147483648 and subsequent identifiers increment from the highest
+        value in use.
+        """
+        FIRST_MASTER_ID = 2147483648
+        used_ids = [
+            identifier
+            for identifier in (int(s) for s in cast("list[str]", self.xpath("./p:sldMasterId/@id")))
+            if identifier >= FIRST_MASTER_ID
+        ]
+        return max([FIRST_MASTER_ID - 1] + used_ids) + 1
 
 
 class CT_SlideMasterIdListEntry(BaseOxmlElement):

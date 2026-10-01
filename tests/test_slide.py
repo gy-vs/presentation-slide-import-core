@@ -488,6 +488,29 @@ class DescribeSlides(object):
         assert slides._sldIdLst.xml == expected_xml
         assert slide is slide_
 
+    def it_can_import_slides_from_another_presentation(self, request):
+        source_slide_ = instance_mock(request, Slide)
+        imported_slide_ = instance_mock(request, Slide)
+        SlideImporter_ = class_mock(request, "pptx.slideimporter.SlideImporter")
+        SlideImporter_.return_value.import_slides.return_value = (imported_slide_,)
+        slides = Slides(element("p:sldIdLst"), None)
+
+        imported_slides = slides.import_slides(source_slide_)
+
+        SlideImporter_.assert_called_once_with(slides)
+        SlideImporter_.return_value.import_slides.assert_called_once_with((source_slide_,))
+        assert imported_slides == (imported_slide_,)
+
+    def it_accepts_an_iterable_when_importing_slides(self, request):
+        source_slide_ = instance_mock(request, Slide)
+        SlideImporter_ = class_mock(request, "pptx.slideimporter.SlideImporter")
+        slides = Slides(element("p:sldIdLst"), None)
+
+        slides.add_slides([source_slide_])
+
+        selected = SlideImporter_.return_value.import_slides.call_args.args[0]
+        assert list(selected) == [source_slide_]
+
     def it_finds_a_slide_by_slide_id(self, get_fixture):
         slides, slide_id, default, prs_part_, expected_value = get_fixture
         slide = slides.get(slide_id, default)

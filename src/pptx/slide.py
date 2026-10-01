@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, cast
+from typing import TYPE_CHECKING, Iterable, Iterator, cast
 
 from pptx.dml.fill import FillFormat
 from pptx.enum.shapes import PP_PLACEHOLDER
@@ -271,6 +271,26 @@ class Slides(ParentedElementProxy):
         slide.shapes.clone_layout_placeholders(slide_layout)
         self._sldIdLst.add_sldId(rId)
         return slide
+
+    def add_slides(self, *slides: Slide | Iterable[Slide]) -> tuple[Slide, ...]:
+        """Return copies of `slides` added to this presentation, in the order given.
+
+        Slides can be passed either as individual arguments or as a single iterable. Each slide
+        must belong to another already-open presentation. The copied slides contain independent
+        copies of their XML and dependencies, including layouts, slide-masters, images, embedded
+        parts, and external relationships. A hyperlink to another selected slide is retargeted to
+        the copied slide. A link to a slide that was not selected raises ValueError before the
+        presentation is modified.
+        """
+        from pptx.slideimporter import SlideImporter
+
+        if len(slides) == 1 and not isinstance(slides[0], Slide):
+            selected_slides = cast("Iterable[Slide]", slides[0])
+        else:
+            selected_slides = cast("Iterable[Slide]", slides)
+        return SlideImporter(self).import_slides(selected_slides)
+
+    import_slides = add_slides
 
     def get(self, slide_id: int, default: Slide | None = None) -> Slide | None:
         """Return the slide identified by int `slide_id` in this presentation.

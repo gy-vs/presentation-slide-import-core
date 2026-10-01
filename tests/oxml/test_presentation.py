@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from pptx.oxml.presentation import CT_SlideIdList
+from pptx.oxml.presentation import CT_SlideIdList, CT_SlideMasterIdList
 
 from ..unitutil.cxml import element, xml
 
@@ -61,3 +61,22 @@ class DescribeCT_SlideIdList(object):
 
         assert 256 <= slide_id <= 2147483647
         assert slide_id == expected_value
+
+
+class DescribeCT_SlideMasterIdList(object):
+    """Unit-test suite for `pptx.oxml.presentation.CT_SlideMasterIdList` objects."""
+
+    def it_can_add_a_sldMasterId_element_as_a_child(self):
+        sldMasterIdLst = cast(
+            "CT_SlideMasterIdList",
+            element("p:sldMasterIdLst/p:sldMasterId{r:id=rId1,id=2147483648}"),
+        )
+
+        sldMasterId = sldMasterIdLst.add_sldMasterId("rId2")
+
+        assert sldMasterIdLst.xml == xml(
+            "p:sldMasterIdLst/("
+            "p:sldMasterId{r:id=rId1,id=2147483648},"
+            "p:sldMasterId{r:id=rId2,id=2147483649})"
+        )
+        assert sldMasterId.rId == "rId2"
