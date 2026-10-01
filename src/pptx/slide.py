@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, cast
+from typing import TYPE_CHECKING, Iterable, Iterator, cast
 
 from pptx.dml.fill import FillFormat
 from pptx.enum.shapes import PP_PLACEHOLDER
@@ -271,6 +271,26 @@ class Slides(ParentedElementProxy):
         slide.shapes.clone_layout_placeholders(slide_layout)
         self._sldIdLst.add_sldId(rId)
         return slide
+
+    def import_slides(self, slides: Iterable[Slide]) -> tuple[Slide, ...]:
+        """Append deep copies of `slides` from another presentation, in the order given.
+
+        `slides` is an iterable of |Slide| objects that all belong to the same *other*
+        currently-open |Presentation|. Each slide is copied complete with its text,
+        pictures, other shapes and their positions, slide-layout and slide-master,
+        external hyperlinks and internal slide-jump actions. The newly created slides in
+        this presentation are returned in the same order as the requested source slides.
+
+        The source presentation is never modified and can still be saved and used on its
+        own; importing from the same source again produces a fresh, independent copy.
+
+        A click action that jumps to a slide which is not among `slides` cannot be
+        preserved in the combined deck, so :class:`pptx.slideimporter.SlideImportError`
+        (a |ValueError|) is raised and this presentation is left unchanged.
+        """
+        source_slide_parts = [slide.part for slide in slides]
+        new_slide_parts = self.part.import_slide_parts(source_slide_parts)
+        return tuple(slide_part.slide for slide_part in new_slide_parts)
 
     def get(self, slide_id: int, default: Slide | None = None) -> Slide | None:
         """Return the slide identified by int `slide_id` in this presentation.

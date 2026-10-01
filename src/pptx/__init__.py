@@ -21,6 +21,7 @@ from pptx.parts.slide import (
     SlideMasterPart,
     SlidePart,
 )
+from pptx.slideimporter import SlideImportError
 
 if TYPE_CHECKING:
     from pptx.opc.package import Part
@@ -30,7 +31,7 @@ __version__ = "1.0.2"
 sys.modules["pptx.exceptions"] = exceptions
 del sys
 
-__all__ = ["Presentation"]
+__all__ = ["Presentation", "SlideImportError"]
 
 content_type_to_part_class_map: dict[str, type[Part]] = {
     CT.PML_PRESENTATION_MAIN: PresentationPart,

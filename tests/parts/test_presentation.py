@@ -13,7 +13,7 @@ from pptx.parts.slide import NotesMasterPart, SlideMasterPart, SlidePart
 from pptx.presentation import Presentation
 from pptx.slide import NotesMaster, Slide, SlideLayout, SlideMaster
 
-from ..unitutil.cxml import element
+from ..unitutil.cxml import element, xml
 from ..unitutil.mock import call, class_mock, instance_mock, method_mock, property_mock
 
 
@@ -140,6 +140,57 @@ class DescribePresentationPart(object):
         prs_part.relate_to.assert_called_once_with(prs_part, slide_part_, RT.SLIDE)
         assert rId == "rId42"
         assert slide is slide_
+
+    def it_delegates_slide_import_to_the_slide_importer(self, request, slide_part_):
+        source_slide_parts_ = [slide_part_]
+        SlideImporter_ = class_mock(
+            request, "pptx.parts.presentation._SlideImporter"
+        )
+        SlideImporter_.import_slides.return_value = (slide_part_,)
+        prs_part = PresentationPart(None, None, None, None)
+
+        result = prs_part.import_slide_parts(source_slide_parts_)
+
+        SlideImporter_.import_slides.assert_called_once_with(prs_part, source_slide_parts_)
+        assert result == (slide_part_,)
+
+    def it_can_register_a_slide_part_in_the_list(self, slide_part_, relate_to_):
+        prs_elm = element("p:presentation/p:sldIdLst/p:sldId{r:id=rId1,id=256}")
+        prs_part = PresentationPart(None, None, None, prs_elm)
+        relate_to_.return_value = "rId2"
+
+        prs_part.add_slide_part(slide_part_)
+
+        prs_part.relate_to.assert_called_once_with(prs_part, slide_part_, RT.SLIDE)
+        assert prs_elm.xml == xml(
+            "p:presentation/p:sldIdLst/"
+            "(p:sldId{r:id=rId1,id=256},p:sldId{r:id=rId2,id=257})"
+        )
+
+    def it_can_register_a_slide_master_part_in_the_list(self, request, relate_to_):
+        slide_master_part_ = instance_mock(request, SlideMasterPart)
+        prs_elm = element(
+            "p:presentation/p:sldMasterIdLst/p:sldMasterId{id=2147483648,r:id=rId1}"
+        )
+        prs_part = PresentationPart(None, None, None, prs_elm)
+        relate_to_.return_value = "rId2"
+
+        prs_part.add_slide_master(slide_master_part_)
+
+        prs_part.relate_to.assert_called_once_with(
+            prs_part, slide_master_part_, RT.SLIDE_MASTER
+        )
+        assert prs_elm.xml == xml(
+            "p:presentation/p:sldMasterIdLst/("
+            "p:sldMasterId{id=2147483648,r:id=rId1},"
+            "p:sldMasterId{id=2147483649,r:id=rId2})"
+        )
+
+    def it_knows_its_slide_count(self):
+        prs_elm = element("p:presentation/p:sldIdLst/(p:sldId,p:sldId,p:sldId)")
+        prs_part = PresentationPart(None, None, None, prs_elm)
+
+        assert prs_part.slide_count == 3
 
     def it_finds_the_slide_id_of_a_slide_part(self, slide_part_, related_part_):
         prs_elm = element(

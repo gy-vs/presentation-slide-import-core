@@ -595,6 +595,12 @@ class ST_SlideId(XsdUnsignedInt):
         cls.validate_int_in_range(value, 256, 2147483647)
 
 
+class ST_SlideMasterId(XsdUnsignedInt):
+    @classmethod
+    def validate(cls, value):
+        cls.validate_int_in_range(value, 2147483648, 2147483711)
+
+
 class ST_SlideSizeCoordinate(BaseIntType):
     @classmethod
     def convert_from_xml(cls, str_value):

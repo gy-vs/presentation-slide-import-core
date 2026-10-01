@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, cast
 
-from pptx.oxml.simpletypes import ST_SlideId, ST_SlideSizeCoordinate, XsdString
+from pptx.oxml.simpletypes import ST_SlideId, ST_SlideMasterId, ST_SlideSizeCoordinate, XsdString
 from pptx.oxml.xmlchemy import BaseOxmlElement, RequiredAttribute, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
@@ -103,7 +103,40 @@ class CT_SlideMasterIdList(BaseOxmlElement):
 
     sldMasterId_lst: list[CT_SlideMasterIdListEntry]
 
+    _add_sldMasterId: Callable[..., CT_SlideMasterIdListEntry]
     sldMasterId = ZeroOrMore("p:sldMasterId")
+
+    def add_sldMasterId(self, rId: str) -> CT_SlideMasterIdListEntry:
+        """Create and return a reference to a new `p:sldMasterId` child element.
+
+        The new element has its `r:id` attribute set to `rId` and its `id` attribute set to the
+        next available slide-master id.
+        """
+        return self._add_sldMasterId(id=self._next_id, rId=rId)
+
+    @property
+    def _next_id(self) -> int:
+        """The next available slide-master id as an `int`.
+
+        Valid slide-master IDs range from 2147483648 (2^31) to 2147483711. The next value greater
+        than the maximum in use is chosen.
+        """
+        MIN_MASTER_ID = 2147483648
+        MAX_MASTER_ID = 2147483711
+
+        used_ids = [int(s) for s in cast("list[str]", self.xpath("./p:sldMasterId/@id"))]
+        simple_next = max([MIN_MASTER_ID - 1] + used_ids) + 1
+        if simple_next <= MAX_MASTER_ID:
+            return simple_next
+
+        valid_used_ids = sorted(
+            id for id in used_ids if MIN_MASTER_ID <= id <= MAX_MASTER_ID
+        )
+        return next(
+            candidate_id
+            for candidate_id, used_id in enumerate(valid_used_ids, start=MIN_MASTER_ID)
+            if candidate_id != used_id
+        )
 
 
 class CT_SlideMasterIdListEntry(BaseOxmlElement):
@@ -112,6 +145,7 @@ class CT_SlideMasterIdListEntry(BaseOxmlElement):
     a reference to a slide master.
     """
 
+    id: int = RequiredAttribute("id", ST_SlideMasterId)  # pyright: ignore[reportAssignmentType]
     rId: str = RequiredAttribute("r:id", XsdString)  # pyright: ignore[reportAssignmentType]
 
 

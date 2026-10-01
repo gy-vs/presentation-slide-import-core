@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from pptx.oxml.presentation import CT_SlideIdList
+from pptx.oxml.presentation import CT_SlideIdList, CT_SlideMasterIdList
 
 from ..unitutil.cxml import element, xml
 
@@ -61,3 +61,39 @@ class DescribeCT_SlideIdList(object):
 
         assert 256 <= slide_id <= 2147483647
         assert slide_id == expected_value
+
+
+class DescribeCT_SlideMasterIdList(object):
+    """Unit-test suite for `pptx.oxml.presentation.CT_SlideMasterIdList` objects."""
+
+    def it_can_add_a_sldMasterId_element_as_a_child(self):
+        sldMasterIdLst = cast(
+            CT_SlideMasterIdList,
+            element("p:sldMasterIdLst/p:sldMasterId{id=2147483648,r:id=rId1}"),
+        )
+
+        sldMasterIdLst.add_sldMasterId("rId2")
+
+        assert sldMasterIdLst.xml == xml(
+            "p:sldMasterIdLst/("
+            "p:sldMasterId{id=2147483648,r:id=rId1},"
+            "p:sldMasterId{id=2147483649,r:id=rId2})"
+        )
+
+    @pytest.mark.parametrize(
+        ("sldMasterIdLst_cxml", "expected_value"),
+        [
+            ("p:sldMasterIdLst", 2147483648),
+            ("p:sldMasterIdLst/p:sldMasterId{id=2147483648}", 2147483649),
+            (
+                "p:sldMasterIdLst/("
+                "p:sldMasterId{id=2147483648},p:sldMasterId{id=2147483650})",
+                2147483651,
+            ),
+        ],
+    )
+    def it_knows_the_next_available_slide_master_id(
+        self, sldMasterIdLst_cxml: str, expected_value: int
+    ):
+        sldMasterIdLst = cast(CT_SlideMasterIdList, element(sldMasterIdLst_cxml))
+        assert sldMasterIdLst._next_id == expected_value

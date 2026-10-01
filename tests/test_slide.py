@@ -488,6 +488,16 @@ class DescribeSlides(object):
         assert slides._sldIdLst.xml == expected_xml
         assert slide is slide_
 
+    def it_can_import_slides_from_another_presentation(self, import_fixture):
+        slides, source_slides_, new_slide_parts_, expected_slides = import_fixture
+
+        new_slides = slides.import_slides(source_slides_)
+
+        slides.part.import_slide_parts.assert_called_once_with(
+            [source_slides_[0].part, source_slides_[1].part]
+        )
+        assert new_slides == expected_slides
+
     def it_finds_a_slide_by_slide_id(self, get_fixture):
         slides, slide_id, default, prs_part_, expected_value = get_fixture
         slide = slides.get(slide_id, default)
@@ -533,6 +543,16 @@ class DescribeSlides(object):
         sldIdLst = element("p:sldIdLst/p:sldId{r:id=rId1}")
         slides = Slides(sldIdLst, None)
         return slides
+
+    @pytest.fixture
+    def import_fixture(self, request, part_prop_):
+        sldIdLst = element("p:sldIdLst")
+        slides = Slides(sldIdLst, None)
+        source_slides_ = [instance_mock(request, Slide) for _ in range(2)]
+        new_slide_parts_ = tuple(instance_mock(request, SlidePart) for _ in range(2))
+        part_prop_.return_value.import_slide_parts.return_value = new_slide_parts_
+        expected_slides = tuple(p.slide for p in new_slide_parts_)
+        return slides, source_slides_, new_slide_parts_, expected_slides
 
     @pytest.fixture(params=[0, 1])
     def index_fixture(self, request, part_prop_):

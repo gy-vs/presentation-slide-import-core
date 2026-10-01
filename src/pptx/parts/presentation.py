@@ -9,10 +9,12 @@ from pptx.opc.package import XmlPart
 from pptx.opc.packuri import PackURI
 from pptx.parts.slide import NotesMasterPart, SlidePart
 from pptx.presentation import Presentation
+from pptx.slideimporter import _SlideImporter
 from pptx.util import lazyproperty
 
 if TYPE_CHECKING:
     from pptx.parts.coreprops import CorePropertiesPart
+    from pptx.parts.slide import SlideMasterPart
     from pptx.slide import NotesMaster, Slide, SlideLayout, SlideMaster
 
 
@@ -32,6 +34,40 @@ class PresentationPart(XmlPart):
         slide_part = SlidePart.new(partname, self.package, slide_layout_part)
         rId = self.relate_to(slide_part, RT.SLIDE)
         return rId, slide_part.slide
+
+    def add_slide_master(self, slide_master_part: SlideMasterPart) -> None:
+        """Relate an existing |SlideMasterPart| to this presentation and list it.
+
+        Used when importing slides from another presentation brings in a copy of that
+        presentation's slide-master.
+        """
+        rId = self.relate_to(slide_master_part, RT.SLIDE_MASTER)
+        self._element.get_or_add_sldMasterIdLst().add_sldMasterId(rId)
+
+    def add_slide_part(self, slide_part: SlidePart) -> None:
+        """Relate an existing |SlidePart| to this presentation and append it to the list."""
+        rId = self.relate_to(slide_part, RT.SLIDE)
+        self._element.get_or_add_sldIdLst().add_sldId(rId)
+
+    @property
+    def slide_count(self) -> int:
+        """Number of slides listed by this presentation part."""
+        return len(self._element.get_or_add_sldIdLst())
+
+    def import_slide_parts(self, source_slide_parts: Iterable[SlidePart]) -> tuple[SlidePart, ...]:
+        """Return tuple of new |SlidePart| objects copied from `source_slide_parts`.
+
+        Each source slide-part belongs to another, already-loaded presentation. The slides
+        are copied together with every package part they depend on (slide-layout,
+        slide-master, images, charts, external hyperlinks, ...) and are appended to this
+        presentation in the order given. Internal click-actions that target one of the
+        selected slides are redirected to the imported copy.
+
+        Raises |SlideImportError| if a self-contained result cannot be produced (for
+        example a click action targets a slide that was not selected); in that case this
+        presentation is left unchanged.
+        """
+        return _SlideImporter.import_slides(self, source_slide_parts)
 
     @property
     def core_properties(self) -> CorePropertiesPart:

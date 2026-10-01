@@ -510,11 +510,14 @@ class DescribeXmlPart:
 class DescribePartFactory:
     """Unit-test suite for `pptx.opc.package.PartFactory` objects."""
 
-    def it_constructs_custom_part_type_for_registered_content_types(self, request, package_, part_):
+    def it_constructs_custom_part_type_for_registered_content_types(
+        self, request, package_, part_, monkeypatch
+    ):
         SlidePart_ = class_mock(request, "pptx.opc.package.XmlPart")
         SlidePart_.load.return_value = part_
         partname = PackURI("/ppt/slides/slide7.xml")
-        PartFactory.part_type_for[CT.PML_SLIDE] = SlidePart_
+        # -- monkeypatch restores the global content-type registry afterwards --
+        monkeypatch.setitem(PartFactory.part_type_for, CT.PML_SLIDE, SlidePart_)
 
         part = PartFactory(partname, CT.PML_SLIDE, package_, b"blob")
 
@@ -693,6 +696,23 @@ class Describe_Relationships:
             relationships, RT.HYPERLINK, "http://url", is_external=True
         )
         assert rId == "rId10"
+
+    def it_can_add_a_relationship_with_an_explicit_rId(self, part_, _Relationship_):
+        relationships = _Relationships("/ppt/slides")
+
+        rId = relationships.add_with_rId("rId9", RT.IMAGE, part_)
+
+        assert rId == "rId9"
+        _Relationship_.assert_called_once_with(
+            "/ppt/slides", "rId9", RT.IMAGE, target_mode=RTM.INTERNAL, target=part_
+        )
+
+    def but_it_raises_when_the_explicit_rId_is_already_used(self, _rels_prop_):
+        relationships = _Relationships(None)
+        _rels_prop_.return_value = {"rId1": object()}
+
+        with pytest.raises(ValueError, match="rId 'rId1' already in use"):
+            relationships.add_with_rId("rId1", RT.IMAGE, object())
 
     def it_can_load_from_the_xml_in_a_rels_part(self, request, _Relationship_, part_):
         rels_ = tuple(

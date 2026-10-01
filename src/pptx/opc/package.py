@@ -7,6 +7,7 @@ presentations to and from a .pptx file.
 from __future__ import annotations
 
 import collections
+import copy
 from typing import IO, TYPE_CHECKING, DefaultDict, Iterator, Mapping, Set, cast
 
 from pptx.opc.constants import RELATIONSHIP_TARGET_MODE as RTM
@@ -404,6 +405,15 @@ class XmlPart(Part):
         """bytes XML serialization of this part."""
         return serialize_part_xml(self._element)
 
+    def clone_element(self) -> BaseOxmlElement:
+        """Return a deep copy of the XML element of this part.
+
+        The returned element shares no nodes with the original, so it can be used to
+        construct an independent copy of this part in another package without mutating
+        the source.
+        """
+        return cast("BaseOxmlElement", copy.deepcopy(self._element))
+
     # -- XmlPart cannot set its blob, which is why pyright complains --
 
     def drop_rel(self, rId: str) -> None:
@@ -546,6 +556,27 @@ class _Relationships(Mapping[str, "_Relationship"]):
             if existing_rId is None
             else existing_rId
         )
+
+    def add_with_rId(
+        self, rId: str, reltype: str, target: Part | str, is_external: bool = False
+    ) -> str:
+        """Add a relationship of `reltype` to `target` with the explicit key `rId`.
+
+        Unlike :meth:`get_or_add` and :meth:`get_or_add_ext_rel`, the caller chooses the rId.
+        Raises |ValueError| if `rId` is already used by this collection. This is used when
+        assembling a copied part whose XML still refers to the relationship ids of the source
+        part; the relationships of the copy are reconstructed using those same ids.
+        """
+        if rId in self._rels:
+            raise ValueError("cannot add relationship, rId '%s' already in use" % rId)
+        self._rels[rId] = _Relationship(
+            self._base_uri,
+            rId,
+            reltype,
+            target_mode=RTM.EXTERNAL if is_external else RTM.INTERNAL,
+            target=target,
+        )
+        return rId
 
     def load_from_xml(
         self, base_uri: str, xml_rels: CT_Relationships, parts: dict[PackURI, Part]
